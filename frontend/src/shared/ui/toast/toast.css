@@ -1,0 +1,39 @@
+/* Radix Toast animations */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0%); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(var(--radix-toast-swipe-end-x, 0)); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Utilities for Radix Toast data-state and data-swipe */
+.radix-toast[data-state="open"] {
+  animation: slideInRight 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.radix-toast[data-state="closed"] {
+  animation: slideOutRight 150ms ease-in forwards;
+}
+
+.radix-toast[data-swipe="move"] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+
+.radix-toast[data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform 200ms ease-out;
+}
+
+.radix-toast[data-swipe="end"] {
+  animation: slideOutRight 100ms ease-out forwards;
+}
+
+@keyframes toastProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+

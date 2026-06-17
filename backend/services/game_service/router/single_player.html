@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Events</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #f7f7f7;
+            padding: 20px;
+        }
+
+        .event {
+            background: white;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            font-size: 16px;
+            margin: 0 0 8px 0;
+        }
+
+        pre {
+            margin: 0;
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <script id="ws-debug-contract" type="application/json">
+{
+  "mode": "single-player",
+  "commands": [
+    { "id": "start", "event": "start" },
+    { "id": "registerOrder", "event": "registerOrder" },
+    { "id": "cancelOrder", "event": "cancelOrder" },
+    { "id": "nextTick", "event": "nextTick" },
+    { "id": "startTicking", "event": "startTicking" }
+  ]
+}
+    </script>
+    <div class="event">
+        <h1>start</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "start",
+    "data": {
+        "userId": "mingyuanc",
+        "levelId": "module-1.1",
+        "mode": "Tutorial"
+    }
+}</pre>
+    </div>
+    <div class="event">
+        <h1>start (auto tick)</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "start",
+    "data": {
+        "userId": "mingyuanc",
+        "levelId": "module-1.1",
+        "mode": "Tutorial"
+    }
+}</pre>
+    </div>
+    <div class="event">
+        <h1>registerOrder (Market Buy)</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "registerOrder",
+    "data": {
+        "userId": "mingyuanc",
+        "ticker": "AAPL",
+        "orderType": "Market",
+        "action": "Buy",
+        "qty": 5
+    }
+}</pre>
+    </div>
+
+    <div class="event">
+        <h1>registerOrder (Limit Sell)</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "registerOrder",
+    "data": {
+        "userId": "mingyuanc",
+        "ticker": "AAPL",
+        "orderType": "Limit",
+        "action": "Sell",
+        "price": 100,
+        "qty": 5
+    }
+}</pre>
+    </div>
+    <div class="event">
+        <h1>registerOrder (Stop SellShort)</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "registerOrder",
+    "data": {
+        "userId": "mingyuanc",
+        "ticker": "AAPL",
+        "orderType": "Stop",
+        "action": "SellShort",
+        "stopPrice": 95,
+        "qty": 5
+    }
+}</pre>
+    </div>
+    <div class="event">
+        <h1>registerOrder (StopLimit BuyToCover)</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "registerOrder",
+    "data": {
+        "userId": "mingyuanc",
+        "ticker": "AAPL",
+        "orderType": "StopLimit",
+        "action": "BuyToCover",
+        "stopPrice": 101,
+        "price": 102,
+        "qty": 5
+    }
+}</pre>
+    </div>
+    <div class="event">
+        <h1>cancelOrder</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "cancelOrder",
+    "data": {
+        "userId": "mingyuanc",
+        "orderId": "TO BE REPLACED"
+    }
+}</pre>
+    </div>
+    <div class="event">
+        <h1>nextTick</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "nextTick",
+    "data": {}
+}</pre>
+    </div>
+    <div class="event">
+        <h1>startTicking</h1>
+        <button onclick="copyToClipboard(this)">Copy</button>
+        <pre>
+{
+    "event": "startTicking",
+    "data": {}
+}</pre>
+    </div>
+
+    <script>
+        function copyToClipboard(button) {
+            const pre = button.nextElementSibling;
+            const text = pre.innerText;
+
+            navigator.clipboard.writeText(text).then(() => {
+                const original = button.innerText;
+                button.innerText = "Copied!";
+                setTimeout(() => button.innerText = original, 1000);
+            });
+        }
+    </script>
+
+
+    <textarea id="msgInput" placeholder='Type a JSON message like {"hello": "world"}'
+        style="width: 500px; height: 100px; font-size: 16px; padding: 5px; resize: vertical;"></textarea>
+    <button onclick="sendMessage()">Send</button>
+    <ul id="messages"></ul>
+
+    <script>
+        const ws = new WebSocket(`ws://${location.host}/game/single-player/ws`);
+
+        ws.onopen = () => {
+            console.log("Connected to WebSocket");
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("Received from server:", data);
+
+            // Show in frontend
+            const li = document.createElement("li");
+            li.textContent = JSON.stringify(data);
+            document.getElementById("messages").appendChild(li);
+        };
+
+        function sendMessage() {
+            const input = document.getElementById("msgInput").value;
+            try {
+                const jsonMsg = JSON.parse(input);
+                ws.send(JSON.stringify(jsonMsg));
+            } catch (e) {
+                alert("Please enter valid JSON");
+            }
+        }
+    </script>
+</body>
+
+</html>

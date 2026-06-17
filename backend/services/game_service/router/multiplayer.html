@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>3-Player WebSocket Debug</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: monospace;
+            background: #f7f7f7;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .player-panel {
+            flex: 1;
+            padding: 14px;
+            border-right: 1px solid #ddd;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .player-panel:last-child {
+            border-right: none;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+
+        .event {
+            background: white;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            font-size: 14px;
+            margin: 0 0 8px 0;
+        }
+
+        pre {
+            margin: 8px 0 0;
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 90px;
+            font-size: 14px;
+            padding: 6px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        ul {
+            padding-left: 18px;
+            margin: 10px 0 0;
+        }
+
+        li {
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout" id="layout"></div>
+    <script id="ws-debug-contract" type="application/json">
+{
+  "mode": "multiplayer",
+  "commands": [
+    { "id": "start", "event": "start" },
+    { "id": "registerOrder", "event": "registerOrder" },
+    { "id": "cancelOrder", "event": "cancelOrder" },
+    { "id": "activePlayers", "event": "activePlayers" },
+    { "id": "privateMessage", "event": "privateMessage" },
+    { "id": "fakeNews", "event": "fakeNews" }
+  ]
+}
+    </script>
+
+    <script>
+        // room id is determined by wsPath query param, default to "/game/multiplayer/ws/67"
+        const wsPath = new URLSearchParams(location.search).get("wsPath") || "/game/multiplayer/ws/67";
+
+        const players = [
+            { label: "Player 1", userId: "player-1" },
+            { label: "Player 2", userId: "player-2" },
+            { label: "Player 3", userId: "player-3" },
+        ];
+
+        const createEventTemplate = (userId) => [
+            {
+                title: "start",
+                payload: {
+                    event: "start",
+                    data: {
+                        userId,
+                        levelId: "multiplayer-1",
+                        mode: "Multiplayer",
+                    }
+                }
+            },
+            {
+                title: "registerOrder (Market Buy)",
+                payload: {
+                    event: "registerOrder",
+                    data: {
+                        userId,
+                        ticker: "AAPL",
+                        orderType: "Market",
+                        action: "Buy",
+                        qty: 5
+                    }
+                }
+            },
+            {
+                title: "registerOrder (Market SellShort)",
+                payload: {
+                    event: "registerOrder",
+                    data: {
+                        userId,
+                        ticker: "AAPL",
+                        orderType: "Market",
+                        action: "SellShort",
+                        qty: 5
+                    }
+                }
+            },
+            {
+                title: "registerOrder (Limit Sell)",
+                payload: {
+                    event: "registerOrder",
+                    data: {
+                        userId,
+                        ticker: "AAPL",
+                        orderType: "Limit",
+                        action: "Sell",
+                        price: 100,
+                        qty: 5
+                    }
+                }
+            },
+            {
+                title: "registerOrder (Stop Sell)",
+                payload: {
+                    event: "registerOrder",
+                    data: {
+                        userId,
+                        ticker: "AAPL",
+                        orderType: "Stop",
+                        action: "Sell",
+                        stopPrice: 95,
+                        qty: 5
+                    }
+                }
+            },
+            {
+                title: "registerOrder (StopLimit Buy)",
+                payload: {
+                    event: "registerOrder",
+                    data: {
+                        userId,
+                        ticker: "AAPL",
+                        orderType: "StopLimit",
+                        action: "Buy",
+                        stopPrice: 101,
+                        price: 102,
+                        qty: 5
+                    }
+                }
+            },
+            {
+                title: "registerOrder (StopLimit BuyToCover)",
+                payload: {
+                    event: "registerOrder",
+                    data: {
+                        userId,
+                        ticker: "AAPL",
+                        orderType: "StopLimit",
+                        action: "BuyToCover",
+                        stopPrice: 101,
+                        price: 102,
+                        qty: 5
+                    }
+                }
+            },
+            {
+                title: "cancelOrder",
+                payload: {
+                    event: "cancelOrder",
+                    data: {
+                        userId,
+                        orderId: "TO BE REPLACED"
+                    }
+                }
+            },
+            {
+                title: "privateMessage",
+                payload: {
+                    event: "privateMessage",
+                    data: {
+                        senderId: userId,
+                        recipientId: "player-2",
+                        content: "Hello from " + userId
+                    }
+                }
+            },
+            {
+                title: "activePlayers",
+                payload: {
+                    event: "activePlayers",
+                    data: {}
+                }
+            },
+            {
+                title: "fakeNews",
+                payload: {
+                    event: "fakeNews",
+                    data: {
+                        ticker: "AAPL",
+                        senderId: userId,
+                        content: "Breaking: Apple announces revolutionary new product!",
+                        delay: 5
+                    }
+                }
+            }
+        ];
+
+        function copyToClipboard(button) {
+            const pre = button.nextElementSibling;
+            const text = pre.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const original = button.innerText;
+                button.innerText = "Copied!";
+                setTimeout(() => button.innerText = original, 1000);
+            });
+        }
+
+        function renderPlayerPanel(player, index) {
+            const panel = document.createElement("section");
+            panel.className = "player-panel";
+            panel.id = `player-${index}`;
+
+            const title = document.createElement("h1");
+            title.textContent = `${player.label} (${player.userId})`;
+            panel.appendChild(title);
+
+            const events = createEventTemplate(player.userId);
+            events.forEach((eventItem) => {
+                const eventDiv = document.createElement("div");
+                eventDiv.className = "event";
+
+                const h2 = document.createElement("h2");
+                h2.textContent = eventItem.title;
+
+                const button = document.createElement("button");
+                button.textContent = "Copy";
+                button.onclick = () => copyToClipboard(button);
+
+                const pre = document.createElement("pre");
+                pre.textContent = JSON.stringify(eventItem.payload, null, 4);
+
+                eventDiv.appendChild(h2);
+                eventDiv.appendChild(button);
+                eventDiv.appendChild(pre);
+                panel.appendChild(eventDiv);
+            });
+
+            const input = document.createElement("textarea");
+            input.id = `msgInput-${index}`;
+            input.placeholder = "Type JSON message and send";
+            panel.appendChild(input);
+
+            const sendButton = document.createElement("button");
+            sendButton.textContent = "Send";
+            sendButton.style.marginTop = "8px";
+            panel.appendChild(sendButton);
+
+            const status = document.createElement("div");
+            status.id = `status-${index}`;
+            status.style.marginTop = "8px";
+            status.textContent = `Connecting to ${wsPath}...`;
+            panel.appendChild(status);
+
+            const messages = document.createElement("ul");
+            messages.id = `messages-${index}`;
+            panel.appendChild(messages);
+
+            const ws = new WebSocket(`ws://${location.host}${wsPath}`);
+
+            ws.onopen = () => {
+                status.textContent = `Connected to ${wsPath}`;
+            };
+
+            ws.onclose = () => {
+                status.textContent = `Disconnected from ${wsPath}`;
+            };
+
+            ws.onmessage = (event) => {
+                const li = document.createElement("li");
+                li.textContent = event.data;
+                messages.appendChild(li);
+            };
+
+            sendButton.onclick = () => {
+                const raw = input.value;
+                try {
+                    const parsed = JSON.parse(raw);
+                    ws.send(JSON.stringify(parsed));
+                } catch (e) {
+                    alert(`Invalid JSON for ${player.label}`);
+                }
+            };
+
+            return panel;
+        }
+
+        const layout = document.getElementById("layout");
+        players.forEach((player, index) => {
+            layout.appendChild(renderPlayerPanel(player, index + 1));
+        });
+    </script>
+</body>
+
+</html>

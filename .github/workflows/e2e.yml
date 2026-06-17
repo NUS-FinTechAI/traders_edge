@@ -1,0 +1,89 @@
+name: E2E (Cypress)
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'firebase.json'
+      - '.github/workflows/e2e.yml'
+
+jobs:
+  cypress-e2e:
+    runs-on: ubuntu-latest
+    # Vite picks up VITE_* env vars at dev/build time. Values below are
+    # demo-only — fine for the auth emulator, never used against real Google.
+    env:
+      VITE_FIREBASE_API_KEY: demo-key
+      VITE_FIREBASE_AUTH_DOMAIN: demo-traders-edge.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: demo-traders-edge
+      VITE_FIREBASE_APP_ID: demo-app-id
+      VITE_FIREBASE_AUTH_EMULATOR_HOST: http://127.0.0.1:9099
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java (Firebase emulator runtime)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+
+      - name: Start Firebase Auth emulator
+        working-directory: frontend
+        run: |
+          npx firebase emulators:start --only auth --project demo-traders-edge \
+            > /tmp/firebase-emulator.log 2>&1 &
+          echo $! > /tmp/firebase-emulator.pid
+          # JVM cold start on a runner is ~15s; 60s gives generous headroom.
+          npx wait-on -t 60000 tcp:127.0.0.1:9099 || (
+            echo "::error::Auth emulator failed to start within 60s"
+            cat /tmp/firebase-emulator.log
+            exit 1
+          )
+          echo "Auth emulator ready on 127.0.0.1:9099."
+
+      - name: Run Cypress E2E
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: frontend
+          config-file: tests/cypress.config.js
+          start: npm run dev
+          wait-on: 'http://localhost:5173'
+          wait-on-timeout: 120
+          browser: chrome
+        env:
+          CI: true
+
+      - name: Stop Firebase Auth emulator
+        if: always()
+        run: |
+          if [ -f /tmp/firebase-emulator.pid ]; then
+            kill "$(cat /tmp/firebase-emulator.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload emulator log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-emulator-log
+          path: /tmp/firebase-emulator.log
+          if-no-files-found: ignore
+
+      - name: Upload Cypress screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots
+          path: frontend/tests/cypress/screenshots
+          if-no-files-found: ignore

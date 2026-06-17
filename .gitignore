@@ -1,0 +1,12 @@
+.vscode/
+**/.env
+**/.env.dev
+**/.env.prod
+
+# @future devs, please uncomment the following once we go live
+# .env.local
+# **/.env.local
+# **/firebase-service-account.json
+# **/firebase-credentials.json
+
+**.pytest_cache

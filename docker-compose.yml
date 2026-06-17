@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env.local
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/backend  # hot reload for dev
+    restart: unless-stopped
+  
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./frontend/.env.local
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    container_name: db
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env.local
+    volumes:
+      - ./backend/config/database/postgres_data:/var/lib/postgresql/data
+      - ./backend/config/database/init-new:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-postgres} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
