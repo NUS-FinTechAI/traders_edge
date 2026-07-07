@@ -1,3 +1,6 @@
+import json
+import os
+
 from config import clean_up, start_up
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +14,39 @@ from services import (
 # TODO:
 # Add error handling
 # Improve game state checking (ie remove all the assert)
+
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+
+def _parse_allowed_origins(raw_origins):
+    if not raw_origins:
+        return DEFAULT_ALLOWED_ORIGINS
+
+    raw_origins = raw_origins.strip()
+    if not raw_origins:
+        return DEFAULT_ALLOWED_ORIGINS
+
+    if raw_origins.startswith("["):
+        try:
+            origins = json.loads(raw_origins)
+        except json.JSONDecodeError as exc:
+            raise ValueError("ALLOWED_ORIGINS must be a JSON array or comma-separated list") from exc
+
+        if not isinstance(origins, list) or not all(
+            isinstance(origin, str) for origin in origins
+        ):
+            raise ValueError("ALLOWED_ORIGINS JSON value must be a list of strings")
+
+        return [origin.strip() for origin in origins if origin.strip()]
+
+    return [
+        origin.strip().strip("\"'")
+        for origin in raw_origins.split(",")
+        if origin.strip().strip("\"'")
+    ]
 
 
 class Server:
@@ -28,10 +64,7 @@ class Server:
             return "pong"
 
     def register_cors(self):
-        origins = [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ]
+        origins = _parse_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
         self._app.add_middleware(
             CORSMiddleware,
             allow_origins=origins,
