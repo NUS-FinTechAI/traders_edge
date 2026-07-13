@@ -27,9 +27,10 @@ def _apply_module_unlock_rules(modules: dict[int, dict[str, Any]]) -> None:
         all_levels_completed = len(levels) > 0 and all(
             bool(level.get("completed")) for level in levels
         )
-        # Existing users may have completed a module before pre-quizzes were
-        # introduced. Do not strand them behind a retroactive pre-quiz gate.
-        post_quiz_unlocked = has_post_quiz and all_levels_completed
+
+        post_quiz_unlocked = (
+            has_post_quiz and pre_quiz_completed and all_levels_completed
+        )
         post_quiz["available"] = post_quiz_unlocked
 
         if has_post_quiz:
