@@ -813,8 +813,8 @@ sequenceDiagram
 
 3. **Initialize database:**
    ```bash
-   psql $DATABASE_URL < config/database/init/01-schema.sql
-   psql $DATABASE_URL < config/database/init/02-initial_state.sql
+   psql $DATABASE_URL < config/database/init-new/01-schema.sql
+   psql $DATABASE_URL < config/database/init-new/02-initial_state.sql
    ```
 
 4. **Run the server:**
