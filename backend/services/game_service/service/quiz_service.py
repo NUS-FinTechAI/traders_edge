@@ -27,6 +27,7 @@ def _apply_module_unlock_rules(modules: dict[int, dict[str, Any]]) -> None:
         all_levels_completed = len(levels) > 0 and all(
             bool(level.get("completed")) for level in levels
         )
+
         post_quiz_unlocked = (
             has_post_quiz and pre_quiz_completed and all_levels_completed
         )
@@ -172,6 +173,11 @@ def grade_quiz_attempt(
         completed=completed,
         last_answers=answers,
     )
+    if completed:
+        quiz_type = str(quiz.get("quiz_type") or "").strip().lower()
+        module = int(quiz.get("module") or 0)
+        if quiz_type == "pre":
+            level_repo.enroll_first_tutorial_level_for_module(user_id, module)
 
     return {
         "quiz_id": quiz_id,

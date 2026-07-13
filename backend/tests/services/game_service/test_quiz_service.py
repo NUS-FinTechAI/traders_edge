@@ -151,6 +151,66 @@ def test_grade_quiz_attempt_scores_and_persists(monkeypatch):
     }
 
 
+def test_grade_pre_quiz_completion_enrolls_current_module_first_level(monkeypatch):
+    monkeypatch.setattr(
+        quiz_service,
+        "_is_quiz_available_for_user",
+        lambda user_id, quiz_id: True,
+    )
+    monkeypatch.setattr(
+        quiz_service.quiz_repo,
+        "get_module_quiz",
+        lambda quiz_id: {
+            "quiz_id": quiz_id,
+            "module": 2,
+            "quiz_type": "pre",
+            "title": "Module 2 Pre-Quiz",
+            "description": "Module 2 concepts",
+            "passing_score": 1,
+            "metadata": {},
+        },
+    )
+    monkeypatch.setattr(
+        quiz_service.quiz_repo,
+        "get_user_module_quiz_progress",
+        lambda user_id, quiz_id: None,
+    )
+    monkeypatch.setattr(
+        quiz_service.quiz_repo,
+        "get_module_quiz_questions",
+        lambda quiz_id: [
+            {
+                "question_id": "q1",
+                "prompt": "Q1",
+                "options": ["A", "B"],
+                "correct_option_index": 0,
+                "explanation": "E1",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        quiz_service.quiz_repo,
+        "upsert_user_module_quiz_progress",
+        lambda **kwargs: None,
+    )
+    enrolled: dict[str, object] = {}
+
+    def _capture_enroll(user_id, module):
+        enrolled["user_id"] = user_id
+        enrolled["module"] = module
+
+    monkeypatch.setattr(
+        quiz_service.level_repo,
+        "enroll_first_tutorial_level_for_module",
+        _capture_enroll,
+    )
+
+    result = quiz_service.grade_quiz_attempt("user-1", "MOD2_PRE", {"q1": 0})
+
+    assert result["completed"] is True
+    assert enrolled == {"user_id": "user-1", "module": 2}
+
+
 def test_grade_quiz_attempt_rejects_second_attempt(monkeypatch):
     monkeypatch.setattr(
         quiz_service,

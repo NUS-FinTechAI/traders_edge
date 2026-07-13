@@ -627,6 +627,30 @@ def update_tutorial_status(
             )
 
 
+def enroll_first_tutorial_level_for_module(user_id: str, module: int) -> None:
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            INSERT INTO user_level_progress (
+                user_id,
+                level_id,
+                best_points,
+                attempted,
+                completed,
+                attempts,
+                last_attempted
+            )
+            SELECT %s, l.level_id, 0, false, false, 0, CURRENT_TIMESTAMP
+            FROM levels l
+            WHERE l.level_type = 'tutorial' AND l.module = %s
+            ORDER BY l.level_order
+            LIMIT 1
+            ON CONFLICT (user_id, level_id) DO NOTHING
+            """,
+            (user_id, module),
+        )
+
+
 def get_available_levels(user_id: str) -> list[dict[str, Any]]:
     with get_db_cursor() as cursor:
         cursor.execute(
