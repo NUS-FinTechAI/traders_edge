@@ -8,3 +8,5 @@ __pycache__/
 **.pytest_cache
 
 /config/database/postgres_data/
+
+**/firebase-service-account.json

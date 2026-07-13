@@ -22,7 +22,7 @@ if (missing.length > 0) {
   // Surface loudly in dev — a missing key produces opaque Firebase errors at runtime.
   console.error(
     `[firebase] missing config keys: ${missing.join(', ')}. ` +
-      `Set them in frontend/.env.local (see .env.example).`,
+      `Set them in frontend/.env (see .env.example).`,
   );
 }
 

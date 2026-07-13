@@ -33,8 +33,8 @@ The specs sign in through the Firebase Auth emulator (the Google popup OAuth flo
 2. Backend: `docker compose up --build` (or `cd backend && python main.py`). Backend must be pointed at the emulator:
    - `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` (no scheme — the SDK requires `host:port`)
    - `FIREBASE_PROJECT_ID=demo-traders-edge` (any string the emulator was started with)
-   Both go in `backend/.env.local`.
-3. Frontend dev server: `cd frontend && npm run dev`. Frontend env (`frontend/.env.local`) needs `VITE_FIREBASE_AUTH_EMULATOR_HOST=http://127.0.0.1:9099` so the Web SDK routes through the emulator.
+   Both go in `backend/.env`.
+3. Frontend dev server: `cd frontend && npm run dev`. Frontend env (`frontend/.env`) needs `VITE_FIREBASE_AUTH_EMULATOR_HOST=http://127.0.0.1:9099` so the Web SDK routes through the emulator.
 4. Run Cypress: `cd frontend && npx cypress run` (or `cypress open` for interactive).
 
 Each spec calls `cy.signInViaEmulator(email, password)` — a custom command in [frontend/tests/cypress/support/e2e.js](frontend/tests/cypress/support/e2e.js) that creates a user via the emulator REST API and signs in through an in-app bridge (`window.__cypressSignInWithPassword`, attached by [services/firebase.ts](frontend/src/services/firebase.ts) in non-prod builds only).
@@ -81,16 +81,16 @@ Feature-based under [frontend/src/](frontend/src/) — see [frontend/docs/projec
 Backend allows only `http://localhost:5173` and `http://127.0.0.1:5173` (hard-coded in [backend/app.py](backend/app.py)). Add new origins there if testing from a different host/port.
 
 ### Environment files
-`.env.local` files live at the repo root (Postgres credentials, consumed by the `db` service) and inside `backend/` and `frontend/`. They are gitignored.
+`.env` files live at the repo root (Postgres credentials, consumed by the `db` service) and inside `backend/` and `frontend/`. They are gitignored.
 
 ### Authentication (Firebase OIDC)
 Auth is in progress (PR 1 landed); details in [docs/auth.md](backend/docs/auth.md) once written, and the design doc at [.claude/plans/i-want-to-add-starry-kettle.md](.claude/plans/i-want-to-add-starry-kettle.md).
 
-**Backend env vars** (in `backend/.env.local`):
+**Backend env vars** (in `backend/.env`):
 - Real project: set either `FIREBASE_CREDENTIALS_JSON` (inline service-account JSON, single line) or `GOOGLE_APPLICATION_CREDENTIALS` (filesystem path to the JSON). `FIREBASE_PROJECT_ID` is optional unless the credentials don't carry one.
 - Auth emulator: `FIREBASE_AUTH_EMULATOR_HOST=localhost:9099` + `FIREBASE_PROJECT_ID=<any-id-used-when-starting-emulator>`. No credentials JSON needed.
 
-**Frontend env vars** (in `frontend/.env.local` — these end up in the JS bundle, which is normal for Firebase Web SDK; the API key is a project identifier, not a secret):
+**Frontend env vars** (in `frontend/.env` — these end up in the JS bundle, which is normal for Firebase Web SDK; the API key is a project identifier, not a secret):
 - `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`.
 
 **Backend auth dep**: every protected route declares `Depends(require_user)` or `Depends(require_existing_user)` from [backend/common/auth.py](backend/common/auth.py). The dep verifies the `Authorization: Bearer <token>` header via `firebase_admin.auth.verify_id_token` inside `asyncio.to_thread` (sync SDK call must not block the event loop). On valid token it returns a `TokenClaims` (`uid`, `email`, `email_verified`, `name?`); `require_existing_user` additionally requires a matching `users` row and 404s otherwise (signal to the frontend to route to `/setup-username`).
